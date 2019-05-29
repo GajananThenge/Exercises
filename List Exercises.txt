@@ -1,0 +1,31 @@
+
+https://www.oreilly.com/learning/how-do-i-use-the-slice-notation-in-python
+# Create two lists to slice, the first is a numeric list from 1 to 9 (List A).
+# The second is also a numeric list, from 0 to 9 (List B)
+
+A = list(range(1,10,1)) # start,stop,step
+B = list(range(9))
+
+print("This is List A:",A)
+print("This is List B:",B)
+
+
+1. Exercise 1: Retrieve the first two elements from List A
+Solution: print("The first two elements of A:",A[0:2], A[:2])
+
+
+2.Exercise 2: Retrieve the last element of B with a negative number
+Solution: B[-1]
+
+3.Exercise 3: Retrieve 4,5,6 from A in two ways: using postive and negative number indices
+Solution: 
+print("Reading from left: ", A[3:6])
+print("Reading from right: ", A[-6:-3])
+
+4.Exercise 4: Go through list A from beginning to end in steps of 2.
+print("Going through A in steps of 2 starting from first to last element: ", A[::2])
+
+
+5.Exercise 5: Go through list A from the last to the first element in steps of 2
+
+print("Going through A in steps of 2 starting from the last element: ",A[::-2])
