@@ -1,0 +1,341 @@
+correction.copy file
+
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Sep 20 11:25:52 2018
+
+@author: gajanan.thenge
+"""
+
+import pandas as pd
+import numpy as np
+
+def write(wb,title,column_num,v_update,filename):
+    #Writing in a same excel
+    for ws in wb.worksheets:
+        if ws.title==title:
+            for i in range(9,len(v_update)+9):
+                ws.cell(row=i, column=column_num).value = v_update[i-9]
+    #wb.save(filename)
+def saveWb(wb,path):
+    wb.save(path)
+    
+    
+#Create out dir if not exist
+def createOutDir(dst_dir):
+    import os
+    out_dir = os.path.join(dst_dir,'Output Directory')
+    os.makedirs(out_dir,exist_ok=True)
+    return out_dir
+
+#Copy files from src to dst
+def copyfiles(src,dst):
+    import shutil
+    shutil.copyfile(src, dst)
+
+
+#Column names for renaming
+def getColNames():
+    column=["Sr.No","Classification","Equipment Type","R&G?","#Man","Discovery Source","Service",
+            "Name","User Friendly Name in site","Asset Tag",
+            "Serial Number","Manufacturer","Model ID","Description","General Comments",
+            "Reference Documents & Drawings","Location","Functional Location","License type","Firmware/Software Revision",
+            "Programing/Configuration Software Tools","OS Type","OS Version","Memory size","Scan time","Processor","Rating",
+            "Range","Supplier","Purchase Date","Install Date","Warranty Duration","Warranty Expiration","Warranty Vendor",
+            "Product Launch date","End of life","Contract Agreements","Company Field","Spares Parts list","IP Address",
+            "MAC Address","Network Subnet","Network Classification ","Domain","Protocol","Connectivity Type","Total Ports",
+            "Ports that are free","Redundant/Secondary","Parent","Channels","Total Slots","Spare slots","Slot Position",
+            "OEM change Management tool","Backup mode","Backup Storage location","Specialised Infrastructure Access Requirements",
+            "Associated Monitoring Tools/Systems","Shutdown Planning & Scheduling","Remote Access","After hours support process",
+            "Alarm/Alerts","Diagnostics ","Plant","Work Instruction","Bill of Material (BOM)","Maintenance Strategy","Antivirus Name",
+            "Access Information","Functional safety","IP Class","Support Team","Service Owner"]
+    return column
+
+
+
+def removeExtraWhitespaces(df):
+    df_obj = df.select_dtypes(['object'])
+    df[df_obj.columns] = df_obj.apply(lambda x: x.str.strip())
+    
+    return df
+
+def ManufacturerFormatting(df,master_data_path):
+     #Get master manufacturer list
+    mst_manufact_df = pd.read_excel(master_data_path,sheet='Manucaturer Dict')
+    
+    #Create a dictionary for manufacturer
+    manufact_dict = dict(zip(mst_manufact_df.Key,mst_manufact_df.Value ))
+#    for key,val in manufact_dict.items():
+#        df['Manufacturer'] = np.where((df['Manufacturer'].str.contains(key,case=False)),manufact_dict[key],df['Manufacturer'])
+    df.replace({"Manufacturer": manufact_dict},inplace=True)
+    return df
+
+def EquipmentTypeFormatting(df,mst_data_path):
+    equip_type_dict_df = pd.read_excel(mst_data_path,sheet_name='Equipment Type Dict')
+    
+    #Create a dictionary for Equipment Type Dict
+    equip_type_dict = dict(zip(equip_type_dict_df.Key,equip_type_dict_df.Value ))
+    
+    #df['Equipment Type'] = df['Equipment Type'].apply(lambda x: equip_type_dict.get(x, ''))
+    #Replace Equipment type as per standard mentioned
+    for key,val in equip_type_dict.items():
+        df['Equipment Type'] = np.where((df['Equipment Type'].str.contains(key,case=False)),equip_type_dict[key],df['Equipment Type'])
+#    
+    
+    #df['Equipment Type'] = df['Equipment Type'].map(equip_type_dict)
+    #df['Equipment Type'] = np.where(df['Equipment Type']!=np.NaN,df['Equipment Type'].map(equip_type_dict),df['Equipment Type'])
+    return df
+
+
+def rectify(src_dir,dst_dir):
+    try:
+        import os
+        import pandas as pd
+        #Create out directory
+        out_dir = createOutDir(dst_dir)
+        
+        #master data file where all the standards has been setup
+        mst_data_path = r'D:\BHP\All Latest Master Data Files\Manufacturer Master Data\Master Manufacture Equip Type Dict.xlsx'
+        
+        
+        irrelevant_cols =['Tech-support','Sheet1','Check List','Cover','Legend','Index',
+                          'Summary','My own Reference','Description of Status','Comments',
+                          'Sheet1','TechSupport','TechSupported','Tech-Supported','checklist',
+                         'Equipment Types and Attribu ','SUMMARY1','Indexx','Checklist',
+                         'Index1','Index (2)','Comments','Fill','AllDocs',
+                        'Backup Appliance CL','CCTV Check LIst','Check List','Notes','Cover','Legend','Index','Attributes','comments']
+        #Iterate over files present in source directory
+        for root,folder,files in os.walk(src_dir):
+            for file in files:#['EASTERNRIDGE Inventory PLC fixed.xlsx']:#['Mineral America Inventory Dump.xlsx']:
+                #print('************************************************************************')
+                print(file)
+                #if file.endswith('PLC.xlsx'):
+                print("Processing file.....{}".format(file))
+                print('************************************************************************')
+                src_filename = os.path.join(src_dir,file)#r'D:\Gajanan\BHP\Krishna Work\Test File.xlsx'
+                src_xl = pd.ExcelFile(src_filename)
+             
+                #Copy files so keep original
+                #copyfiles(src_filename,os.path.join(out_dir,file))
+                
+                
+                import openpyxl
+                src_book = openpyxl.load_workbook(os.path.join(src_dir,file))
+                
+                
+                #column_num_dict = dict(zip([i+1 for i in range(len(getColNames()))],getColNames())) 
+                
+                
+                writer = pd.ExcelWriter(os.path.join(out_dir,file), engine='openpyxl') 
+                writer.book = src_book
+                writer.sheets = dict((ws.title, ws) for ws in src_book.worksheets)
+                
+                sheet_names = [sheet for sheet in writer.sheets.keys() if sheet not in irrelevant_cols]
+                for sheet in sheet_names:
+                    print(sheet)
+                    
+                    #Read the sheet
+                    source_df = pd.read_excel(src_xl.io,sheet,header=None)
+                    source_df.columns = getColNames()
+                    
+                    #Selet the sheet data from 9th row
+                    source_df = source_df.iloc[8:,:]
+                    
+                    #Remove leading and Trailing Whitespcaes
+                    source_df = removeExtraWhitespaces(source_df)
+                    
+                    #Standardised the Manufacturer
+                    #source_df = ManufacturerFormatting(source_df,mst_data_path)
+                    
+                    #Standardised the Equipment Type
+                    source_df = EquipmentTypeFormatting(source_df,mst_data_path)
+                    
+                    source_df["Equipment Type"] = source_df["Equipment Type"].replace("Chassis Unit","")
+                    
+                    source_df.to_excel(writer, sheet, startrow=6, startcol=1)
+
+#                    for num,column in column_num_dict.items() :
+#                        if column in ['Equipment Type','Manufacturer']:
+#                            write(out_wb,sheet,num,source_df[column].tolist(),os.path.join(out_dir,file))
+#                
+            #saveWb(out_wb,os.path.join(out_dir,file))
+                writer.save()
+            print('************************************************************************')
+            print("Succcessfully Proccessed file :{}".format(os.path.join(out_dir,file)))
+            print('************************************************************************')
+    except (KeyboardInterrupt, SystemExit):
+        import sys
+        sys.exit(0)
+#EOLStatus()
+-----------------------------------------
+correction file:
+
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Sep 20 11:25:52 2018
+
+@author: gajanan.thenge
+"""
+
+import pandas as pd
+import numpy as np
+
+
+
+#Column names for renaming
+def getColumnNames():
+    column=['Sr.No', 'Site Name', 'File Group', 'Classification', 'Equipment Type', 'Scope', 'Tech Support', 'Discovery Source', 
+            'System', 'Name', 'User Friendly Name', 'Asset Tag', 'Serial Number', 'Manufacturer', 'Model ID', 'Description', 
+            'Location', 'Functional Location', 'IP Address', 'Life Cycle Status', 'Redundant/Secondary', 'Path', 'Backup mode', 
+            'Backup Storage location', 'Remote Access', 'Access Information', 'Access Requirements', 'General Comments', 'Reference Documents & Drawings', 
+            'License type', 'Firmware/Software Revision', 'OS Type', 'OS Version', 'Memory size', 'Scan time', 'Processor', 'Rating', 'Range', 
+            'Supplier', 'Purchase Date', 'Install Date', 'Warranty Duration', 'Warranty Expiration', 'Warranty Vendor', 'Product Launch date', 
+            'Contract Agreement', 'Company Field', 'Spares Parts', 'MAC Address', 'Network Subnet', 'Network Classification ', 'Domain', 'Protocol', 
+            'Connectivity Type', 'Total Ports', 'Free Ports', 'Channels', 'Total Slots', 'Spare slots', 'Slot Position', 'Programing/Configuration Software', 
+            'Change Management Tool', 'Monitoring Tools/Systems', 'Monitoring', 'Alarm/Alerts', 'System Owner', 'Support Team', 'After hours Support', 'Plant', 
+            'Maintenance Strategy', 'Shutdown Planning & Scheduling', 'Work Instruction', 'Bill of Material (BOM)', 'Antivirus Name', 'Functional safety', 
+            'IP Class', 'Mandatory_R', 'Important_R', 'Optional_R', 'Mandatory_F', 'Important_F', 'Optional_F']
+    return column
+
+
+
+def ManufacturerFormatting(df,mapping_file_path):
+     #Get master manufacturer list
+    #mst_manufact_df = pd.read_excel(master_data_path,sheet='Manucaturer Dict')
+    print('-'*60)
+    print("Standardizing Manufacturers")
+   
+    mst_manufact_df = pd.read_excel(mapping_file_path,'Manufact Mapping')
+    
+    mst_manufact_df = mst_manufact_df[mst_manufact_df['Inve Manufacturer']!=mst_manufact_df["Corrected Manufacturer"]]
+    #Create a dictionary for manufacturer
+    manufact_dict = dict(zip(mst_manufact_df['Inve Manufacturer'],mst_manufact_df["Corrected Manufacturer"]))
+    #df['Manufacturer'] = df['Manufacturer'].map(manufact_dict)
+    
+    for key,val in manufact_dict.items():
+        df['Manufacturer'] = np.where((df['Manufacturer'].str.contains(key,case=True,regex=False)),manufact_dict[key],df['Manufacturer'])
+    #df.replace({"Manufacturer": manufact_dict},inplace=True)
+    return df
+
+def ModelIDFormatting(df,mapping_file_path):
+    import warnings
+    import pandas as pd
+    warnings.filterwarnings("ignore", 'This pattern has match groups')
+    print('-'*60)
+    print("Standardizing Model Id's")
+     #Get master manufacturer list
+    mst_model_id_df = pd.read_excel(mapping_file_path,'Model ID Dict')
+    
+    mst_model_id_df = mst_model_id_df[mst_model_id_df["Inve Model ID"]!=mst_model_id_df["Corrected Model ID"]]
+    
+    #Create a dictionary for manufacturer
+    model_id_dict = dict(zip(mst_model_id_df["Inve Model ID"],mst_model_id_df["Corrected Model ID"] ))
+#    for key,val in model_id_dict.items():
+#        df['Model ID'] = np.where((df['Model ID'].str.contains(key,case=True,regex=False)),model_id_dict[key],df['Model ID'])    
+    df.replace({"Model ID": model_id_dict},inplace=True,regex=False)
+    return df
+
+
+def getMasterEOL(eol_file_path):
+    import pandas as pd
+    print("-"*60)
+    print("Creating Model Id and life Cycle Status mapping")
+    master_file_sheet_name= "Master File "
+    df= pd.read_excel(eol_file_path,master_file_sheet_name)
+    df = df[["Model ID","Lifecycle Status (BHP)",'Discontinued Date']]
+    return df
+
+def update_status(all_model_id_df,bhp_status_col,df):
+    import numpy as np
+    print('-'*60)
+    print("Updating Product Life Cycle")
+    df['Model ID']=df['Model ID'].astype(str)
+    df['Model ID']=df['Model ID'].replace({str(np.nan):''})
+    df['Life Cycle Status']=df['Life Cycle Status'].astype(str)
+    df['Life Cycle Status']=df['Life Cycle Status'].replace({str(np.nan):''})
+    all_model_id_df['Model ID'] = all_model_id_df['Model ID'].astype(str)
+    eol_dict = dict(zip(all_model_id_df['Model ID'],all_model_id_df[bhp_status_col]))
+    for key,val in eol_dict.items():
+        df['Life Cycle Status'] = np.where((df['Model ID'].str.contains(key,regex=False)),eol_dict[key],df['Life Cycle Status'])
+    return df
+
+
+def update_date(all_model_id_df,df):
+#    all_model_id_df = getMasterEOL(eol_file_path)
+    print('-'*60)
+    print("Updating Discontinued Date")
+    date_dict = dict(zip(all_model_id_df['Model ID'],all_model_id_df['Discontinued Date'].astype(str)))
+    #print(date_dict)
+    for key,val in date_dict.items():
+        df['DISCONTINUED DATE'] = np.where((df['Model ID'].str.contains(key,case=False,regex=False)),date_dict[key],df['DISCONTINUED DATE'])
+    return df
+
+
+def writeInTemplate(src_filename,updated_df,sheet_name,out_file_path):
+    import pandas as pd
+    import xlwings as xw
+    app = xw.App(visible=False)
+    wb = xw.Book(src_filename)
+    wb.sheets[sheet_name].range('H12').value = updated_df.iloc[:,7:].values
+    out_file_path= out_file_path.replace("%20"," ")
+    wb.save(out_file_path)
+    wb.close()
+    app.kill()
+
+
+def cleanup(src_dir,dst_dir,mapping_file_path,eol_file_path):
+    try:
+        import os
+        import pandas as pd
+        from io import StringIO
+        from MergeModule import MergeAll
+        from TG2Calculation import TG2CalculationModule
+        #mapping_file_path = '..\Mapping Data Files\Model ID Manufact Mapping.xlsx'
+        #Create out directory if not exists
+        os.makedirs(os.path.join(dst_dir,"Cleaned "+src_dir.rsplit(os.sep,1)[1]),exist_ok=True)
+        out_dir = os.path.join(dst_dir,"Cleaned "+src_dir.rsplit(os.sep,1)[1])
+        all_model_id_df = getMasterEOL(eol_file_path)
+        for root,folder,files in os.walk(src_dir):
+            for file in files:                
+                print(file)
+                print("Processing file.....{}".format(file))
+                print('-'*60)
+                src_filename = os.path.join(src_dir,file)
+               
+                #Read the Inventory file
+                #source_df = pd.read_excel(src_xl.io,sheet_name='Inventory',header=None,names = getColumnNames(),keep_default_na=False,na_values=[''])
+                source_df = pd.read_excel(src_filename,"Inventory",header=10,skip_rows=9,keep_default_na=False)
+                
+                source_df['Manufacturer'] =source_df['Manufacturer'].str.strip()
+                
+                
+                source_df['Model ID'] =source_df['Model ID'].str.strip()
+                # Standardized the Manufacturer
+#                source_df = ManufacturerFormatting(source_df,mapping_file_path)
+#                
+                # Standardized the Model ID
+                source_df= ModelIDFormatting(source_df,mapping_file_path)
+#                
+#                #Update Product life cycle status
+#                source_df = update_status(all_model_id_df,"Lifecycle Status (BHP)",source_df)
+                
+                #source_df=update_date(eol_file_path,source_df)
+                
+                source_df = source_df.replace({str(np.nan):''})
+                #Write the updated/modified data into template
+                writeInTemplate(src_filename,source_df,'Inventory',os.path.join(out_dir,"Cleaned "+file))
+            
+            print('-'*60)
+            print("Cleaned file location :{}".format(os.path.join(out_dir)))
+            
+            print('-'*60)
+            print("Combining all the modified files")
+            combined_data_path = MergeAll.merge_xlsxfiles(out_dir,dst_dir)
+#            
+#            print("Calculating TG2 percentage")
+#            TG2CalculationModule.calculate_percentage(combined_data_path,os.path.join(dst_dir,"TG2_percentage"))
+#            
+    except (KeyboardInterrupt, SystemExit):
+        import sys
+        sys.exit(0)
+
