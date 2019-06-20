@@ -1,0 +1,55 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Jan  3 13:11:09 2019
+
+@author: gajanan.thenge
+"""
+
+
+def split_by_classi(df,dst_dir,file_name):
+    import pandas as pd
+    import os
+    gb = df.groupby(['Classification'])
+    writer = pd.ExcelWriter(os.path.join(dst_dir,'Split by Classification '+file_name))
+    for g in gb.groups.keys():
+        sheet=g.replace('/','_')[:31]
+        out_df=df.loc[gb.groups[g],:].copy()
+        out_df.to_excel(excel_writer=writer,sheet_name=sheet,index=False)
+        print('-'*50)
+        print("Creating output for.... {}".format(sheet))
+    print('-'*50)
+    print("Output location: {}".format(os.path.join(dst_dir,'Split by Classification '+file_name)))
+    writer.save()
+
+
+def calculate_percentage(combine_data_file_path,dst_dir_tg2):
+    import os
+    import pandas as pd
+    file_name = combine_data_file_path.rsplit(os.path.sep,1)[1]
+    df = pd.read_excel(combine_data_file_path,"All Inventory Data",keep_default_na=False)
+    os.makedirs(dst_dir_tg2,exist_ok=True)
+    
+    grp_by=["Site Name","Classification",'Equipment Type']
+    
+    #createEmptyExls(out_path)
+    gb= df.groupby(grp_by)
+    
+    count_df = gb.count()
+    
+    #Get all column names of df
+    col_list = count_df.columns
+    
+    for col in col_list[6:]:
+        count_df[col] = count_df[col]/ count_df['File Name']*100
+    filtered_count_df = count_df[col_list[6:]]
+    filtered_count_df.insert(0,"Baseline Qty",count_df['File Name'])
+    
+    filtered_count_df=filtered_count_df.round(1)
+    filtered_count_df= filtered_count_df.reset_index()
+    filtered_count_df.dropna(how='all',inplace=True)
+    
+    split_by_classi(filtered_count_df,dst_dir_tg2,file_name)
+    return filtered_count_df
+
+
+
