@@ -1,1 +1,124 @@
 
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Sep 25 11:21:47 2018
+
+@author: gajanan.thenge
+"""
+
+# =============================================================================
+# Return the current column names
+# If any change in template column change the below list
+# =============================================================================
+def getColumnNames():
+    column=['Sr.No', 'Site Name', 'File Group', 'Classification', 'Equipment Type', 'Scope', 'Tech Support', 'Discovery Source', 
+            'System', 'Name', 'User Friendly Name', 'Asset Tag', 'Serial Number', 'Manufacturer', 'Model ID', 'Description', 
+            'Location', 'Functional Location', 'IP Address', 'Life Cycle Status', 'Redundant/Secondary', 'Path', 'Backup mode', 
+            'Backup Storage location', 'Remote Access', 'Access Information', 'Access Requirements', 'General Comments', 'Reference Documents & Drawings', 
+            'License type', 'Firmware/Software Revision', 'OS Type', 'OS Version', 'Memory size', 'Scan time', 'Processor', 'Rating', 'Range', 
+            'Supplier', 'Purchase Date', 'Install Date', 'Warranty Duration', 'Warranty Expiration', 'Warranty Vendor', 'Product Launch date', 
+            'Contract Agreement', 'Company Field', 'Spares Parts', 'MAC Address', 'Network Subnet', 'Network Classification ', 'Domain', 'Protocol', 
+            'Connectivity Type', 'Total Ports', 'Free Ports', 'Channels', 'Total Slots', 'Spare slots', 'Slot Position', 'Programing/Configuration Software', 
+            'Change Management Tool', 'Monitoring Tools/Systems', 'Monitoring', 'Alarm/Alerts', 'System Owner', 'Support Team', 'After hours Support', 'Plant', 
+            'Maintenance Strategy', 'Shutdown Planning & Scheduling', 'Work Instruction', 'Bill of Material (BOM)', 'Antivirus Name', 'Functional safety', 
+            'IP Class', 'Mandatory_R', 'Important_R', 'Optional_R', 'Mandatory_F', 'Important_F', 'Optional_F']
+    return column
+
+
+def getListOfFiles(dirName):
+# =============================================================================
+# Create a list of files in directories and sub directories 
+# =============================================================================
+    import os
+    listOfFile = os.listdir(dirName)
+    allFiles = list()
+    # Iterate over all the entries
+    for entry in listOfFile:
+        # Create full path
+        fullPath = os.path.join(dirName, entry)
+        # If entry is a directory then get the list of files in this directory 
+        if os.path.isdir(fullPath):
+            allFiles = allFiles + getListOfFiles(fullPath)
+        else:
+            allFiles.append(fullPath)
+                
+    return allFiles
+
+
+
+def merge_xlsxfiles(src_dir,dst_dir):
+# =============================================================================
+#     This Function will combined all the files in the src_dir folder
+#     src_dir: Inventory file directory
+#     dst_dir: Combined data output directory
+# =============================================================================
+    import pandas as pd
+    import os
+    import numpy as np  
+    #try:
+    if True:
+        os.makedirs(dst_dir,exist_ok=True)
+        out_file =os.path.join(dst_dir,'Combined Data.xlsx')
+        site = src_dir.rsplit(os.sep,1)[1]
+        writer = pd.ExcelWriter(os.path.join(dst_dir,site+' Combined Data.xlsx'))
+        all_files = getListOfFiles(src_dir)
+        xlm_files = [f for f in all_files if f.endswith('.xlsm')]
+        df=pd.DataFrame()
+        inve_file_list = []
+        count=0
+        for file in xlm_files:
+            count+=1
+            file_name =file.rsplit('\\',1)[1].replace("%20"," ")
+            print('-'*60)
+            print("Processing....{}".format(file_name))
+            xl =pd.ExcelFile(os.path.join(src_dir,file))
+            data = pd.read_excel(xl.io,"Inventory",header=10,skip_rows=9,keep_default_na=False)
+            #data = pd.read_excel(xl.io,"Inventory",header=None,names=getColumnNames(),keep_default_na=False,na_values=[''])
+            
+            data = data.copy()
+            inve_file_list.extend([file_name]*data.shape[0])
+            df = df.append(data)
+            
+
+        #Remove empty rows if any
+        df.dropna(how='all',inplace=True)            
+
+        #Adding Inventory file name at position 1 in excel
+        df.insert(1,'Inventory File Name',inve_file_list)
+        
+        #Write and combined data to output file
+        df.to_excel(writer, sheet_name='All Inventory Data',index=False)
+        writer.save()    
+        
+        print('-'*60)
+        print("Total Files Processed {}".format(count))
+        print('-'*60)
+        return  """Files Successfully Processed" "All files merge Successfully. Output loaction: {}""".format(out_file)
+----------------------------------------------------------
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Sep  3 10:12:50 2018
+
+@author: gajanan.thenge
+
+src_dir : Should be a directory or sub_directory containing '.xlsm' files
+dst_dir : Output directory path
+
+"""
+
+from Merge import MergeAll
+if __name__=='__main__':
+    import time
+    start_time = time.time()
+    from Config import Config
+    src_dir = Config.getData('paths', 'src_dir')
+    dst_dir = Config.getData('paths', 'dst_dir')
+    #try:
+    results  = MergeAll.merge_xlsxfiles(src_dir,dst_dir)
+    print(results)
+    print("***********************************************************")
+    
+    
+    print("--- %s seconds ---" % (time.time() - start_time))
+    -------------------------------------------------------------------------------------
+    
